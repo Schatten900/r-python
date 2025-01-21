@@ -23,8 +23,8 @@ pub fn eval(exp: Expression, env: &Environment) -> Result<Expression, ErrorMessa
         Expression::LTE(lhs, rhs) => lte(*lhs, *rhs, env),
         Expression::Var(name) => lookup(name, env),
 
-        Expression::List(elements)=>
-        eval_create_list(elements,env),
+        Expression::List(elements_list)=>
+        eval_create_list(elements_list,env),
 
         Expression::Push(list,elem)=>
         eval_push_list(*list,*elem,env),
@@ -57,14 +57,21 @@ fn lookup(name: String, env: &Environment) -> Result<Expression, ErrorMessage> {
 
 /* Data structure */
 
-fn eval_create_list(elements: Vec<Expression>, env: &Environment)
+fn eval_create_list(elements_list: Option<Vec<Expression>>, env: &Environment)
 ->Result<Expression,ErrorMessage>{
 
-    let mut eval_elements = Vec::new();
-    for elem in elements {
-        eval_elements.push(eval(elem, env)?);
+    match elements_list{
+        Some(vec)=>{
+            let mut eval_elements = Vec::new();
+            for elem in vec {
+                eval_elements.push(eval(elem, env)?);
+            }
+            Ok(Expression::List(Some(eval_elements)))
+        }
+        None=>{
+            Err(String::from("First argument must be a list"))
+        }
     }
-    Ok(Expression::List(eval_elements))
 }
 
 fn eval_push_list(list: Expression, elem: Expression, env: &Environment)
@@ -73,30 +80,29 @@ fn eval_push_list(list: Expression, elem: Expression, env: &Environment)
     let list_aux = eval(list, env)?;
     let elem_aux = eval(elem, env)?;
 
-    match list_aux{
-        Expression::List(mut elements) => {
-            elements.push(elem_aux);
-            Ok(Expression::List(elements))
+    match list_aux {
+        Expression::List(Some(mut vec)) => {
+            vec.push(elem_aux);
+            Ok(Expression::List(Some(vec)))
         }
-        _ => Err(String::from("Expected list as first argument."))
+        Expression::List(None) => Err(String::from("Cannot push to an empty list.")),
+        _ => Err(String::from("Expected a list as the first argument.")),
     }
-
 }
 
 fn eval_pop_list(list: Expression, env: &Environment)
 ->Result<Expression,ErrorMessage>{
 
     let list_aux = eval(list, env)?;
-    match list_aux{
-        Expression::List(mut elements)=>{
-            if let Some(last) = elements.pop(){
+    match list_aux {
+        Expression::List(Some(mut vec)) => {
+            if let Some(last) = vec.pop() {
                 Ok(last)
-            }
-            else{
+            } else {
                 Err(String::from("Cannot pop from an empty list."))
             }
         }
-        _ => Err(String::from("Pop expects a list as its argument."))
+        _ => Err(String::from("Exepcted a list for pop operation.")),
     }
 }
 
@@ -381,10 +387,24 @@ mod tests {
     use approx::relative_eq;
 
     #[test]
-    fn eval_push_list(){
-        //vet = []
-        //elem = 10
-        //eval List com elem 10
+    fn eval_push_list() {
+
+        let mut list = Expression::List(Some(vec![Expression::CInt(5), Expression::CInt(10), Expression::CInt(15)]));
+        
+        let elem = Expression::CInt(20);
+        let env = HashMap::new();
+        
+        list = eval(Expression::Push(Box::new(list), Box::new(elem)), &env).unwrap();
+        
+        assert_eq!(
+            list,
+            Expression::List(Some(vec![
+                Expression::CInt(5), 
+                Expression::CInt(10), 
+                Expression::CInt(15), 
+                Expression::CInt(20)
+            ]))
+        );
     }
 
     #[test]

@@ -44,9 +44,10 @@ pub enum Expression {
     LTE(Box<Expression>, Box<Expression>),
 
     /* Data Structure */
-    List(Vec<Expression>),
+    List(Option<Vec<Expression>>),
     Push(Box<Expression>,Box<Expression>),
     Pop(Box<Expression>),
+    Get(Box<Expression>,Box<Expression>) // Recebe uma lista e um indice
 }
 
 #[derive(Debug, PartialEq, Clone)]

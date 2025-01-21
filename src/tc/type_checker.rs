@@ -42,19 +42,27 @@ pub fn check(exp: Expression, env: &Environment) -> Result<Type, ErrorMessage> {
     }
 }
 
-fn check_create_list(list: Vec<Expression>, env: &Environment) 
+fn check_create_list(maybe_list: Option<Vec<Expression>>, env: &Environment) 
 -> Result<Type,ErrorMessage>{
-    if list.is_empty(){
-        return Err(String::from("Cannot create an empty list"));
-    }
-    let first_type = check(list[0].clone(),env)?;
-    for item in list.iter(){
-        let item_type = check(item.clone(),env)?;
-        if item_type != first_type{
-            return Err(String::from("[Type Error] Differents types in list"));
+    match maybe_list{
+        Some(vec)=>{
+            if vec.is_empty(){
+                return Err(String::from("List cannot be create empty"));
+            }
+
+            let first_type = check(vec[0].clone(),env)?;
+            for item in vec.iter(){
+                let item_type = check(item.clone(),env)?;
+                if item_type != first_type{
+                    return Err(String::from("Differents types in list"));
+                }
+            }
+            Ok(Type::TList(Box::new(first_type)))
+        }
+        None=>{
+            Err(String::from("List is None"))
         }
     }
-    Ok(Type::TList(Box::new(first_type)))
 }
 
 fn check_push_list(list: Expression, elem: Expression ,env: &Environment)
@@ -144,7 +152,7 @@ mod tests {
     #[test]
     fn check_create_valid_list() {
         let env = HashMap::new();
-        let elements = vec![CInt(1), CInt(2), CInt(3)];
+        let elements = Some(vec![CInt(1), CInt(2), CInt(3)]);
         let list = List(elements);
 
         assert_eq!(check(list, &env), Ok(TList(Box::new(TInteger))));
@@ -153,20 +161,19 @@ mod tests {
     #[test]
     fn check_create_inconsistent_list() {
         let env = HashMap::new();
-        let elements = vec![CInt(1), CReal(2.0)];
+        let elements = Some(vec![CInt(1), CReal(2.0)]);
         let list = List(elements);
     
         assert_eq!(
             check(list, &env),
-            Err(String::from("[Type Error] Differents types in list"))
+            Err(String::from("Differents types in list"))
         );
     }
-    
 
     #[test]
     fn check_push_valid_elements_in_list(){
         let env = HashMap::new();
-        let list = List(vec![CInt(1),CInt(2)]);
+        let list = List(Some(vec![CInt(1),CInt(2)]));
         let elem = CInt(3);
         let push = Push(Box::new(list),Box::new(elem));
         
