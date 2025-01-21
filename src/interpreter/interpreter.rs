@@ -22,6 +22,16 @@ pub fn eval(exp: Expression, env: &Environment) -> Result<Expression, ErrorMessa
         Expression::GTE(lhs, rhs) => gte(*lhs, *rhs, env),
         Expression::LTE(lhs, rhs) => lte(*lhs, *rhs, env),
         Expression::Var(name) => lookup(name, env),
+
+        Expression::List(elements)=>
+        eval_create_list(elements,env),
+
+        Expression::Push(list,elem)=>
+        eval_push_list(*list,*elem,env),
+
+        Expression::Pop(list)=>
+        eval_pop_list(*list,env),
+
         _ if is_constant(exp.clone()) => Ok(exp),
         _ => Err(String::from("Not implemented yet.")),
     }
@@ -42,6 +52,51 @@ fn lookup(name: String, env: &Environment) -> Result<Expression, ErrorMessage> {
     match env.get(&name) {
         Some(value) => Ok(value.clone()),
         None => Err(format!("Variable {} not found", name)),
+    }
+}
+
+/* Data structure */
+
+fn eval_create_list(elements: Vec<Expression>, env: &Environment)
+->Result<Expression,ErrorMessage>{
+
+    let mut eval_elements = Vec::new();
+    for elem in elements {
+        eval_elements.push(eval(elem, env)?);
+    }
+    Ok(Expression::List(eval_elements))
+}
+
+fn eval_push_list(list: Expression, elem: Expression, env: &Environment)
+->Result<Expression,ErrorMessage>{
+
+    let list_aux = eval(list, env)?;
+    let elem_aux = eval(elem, env)?;
+
+    match list_aux{
+        Expression::List(mut elements) => {
+            elements.push(elem_aux);
+            Ok(Expression::List(elements))
+        }
+        _ => Err(String::from("Expected list as first argument."))
+    }
+
+}
+
+fn eval_pop_list(list: Expression, env: &Environment)
+->Result<Expression,ErrorMessage>{
+
+    let list_aux = eval(list, env)?;
+    match list_aux{
+        Expression::List(mut elements)=>{
+            if let Some(last) = elements.pop(){
+                Ok(last)
+            }
+            else{
+                Err(String::from("Cannot pop from an empty list."))
+            }
+        }
+        _ => Err(String::from("Pop expects a list as its argument."))
     }
 }
 
@@ -324,6 +379,13 @@ mod tests {
     use crate::ir::ast::Expression::*;
     use crate::ir::ast::Statement::*;
     use approx::relative_eq;
+
+    #[test]
+    fn eval_push_list(){
+        //vet = []
+        //elem = 10
+        //eval List com elem 10
+    }
 
     #[test]
     fn eval_constant() {

@@ -27,7 +27,53 @@ pub fn check(exp: Expression, env: &Environment) -> Result<Type, ErrorMessage> {
         Expression::LT(l, r) => check_bin_relational_expression(*l, *r, env),
         Expression::GTE(l, r) => check_bin_relational_expression(*l, *r, env),
         Expression::LTE(l, r) => check_bin_boolean_expression(*l, *r, env),
+        
+        Expression::List(elements)=>
+        check_create_list(elements,env),
+
+        Expression::Push(list,elem)=>
+        check_push_list(*list,*elem,env),
+
+        Expression::Pop(list)=>
+        check_pop_list(*list,env),
+
+
         _ => Err(String::from("not implemented yet")),
+    }
+}
+
+fn check_create_list(list: Vec<Expression>, env: &Environment) 
+-> Result<Type,ErrorMessage>{
+    if list.is_empty(){
+        return Err(String::from("Cannot create an empty list"));
+    }
+    let first_type = check(list[0].clone(),env)?;
+    for item in list.iter(){
+        let item_type = check(item.clone(),env)?;
+        if item_type != first_type{
+            return Err(String::from("[Type Error] Differents types in list"));
+        }
+    }
+    Ok(Type::TList(Box::new(first_type)))
+}
+
+fn check_push_list(list: Expression, elem: Expression ,env: &Environment)
+-> Result<Type,ErrorMessage>{
+    let list_type = check(list,env)?;
+    let elem_type = check(elem,env)?;
+    match list_type {
+        Type::TList(boxed_type) if *boxed_type == elem_type => Ok(Type::TBool),
+        _ => Err(String::from("[Type Error] element type does not match list type")),
+    }
+}
+
+fn check_pop_list(list: Expression, env: &Environment)
+->Result<Type,ErrorMessage>{
+    let list_type = check(list,env)?;
+
+    match list_type{
+        Type::TList(boxed_type) => Ok(*boxed_type),
+        _ => Err(String::from("[Type Error] cannot pop from a non-list type"))
     }
 }
 
@@ -94,6 +140,38 @@ mod tests {
 
     use crate::ir::ast::Expression::*;
     use crate::ir::ast::Type::*;
+
+    #[test]
+    fn check_create_valid_list() {
+        let env = HashMap::new();
+        let elements = vec![CInt(1), CInt(2), CInt(3)];
+        let list = List(elements);
+
+        assert_eq!(check(list, &env), Ok(TList(Box::new(TInteger))));
+    }
+
+    #[test]
+    fn check_create_inconsistent_list() {
+        let env = HashMap::new();
+        let elements = vec![CInt(1), CReal(2.0)];
+        let list = List(elements);
+    
+        assert_eq!(
+            check(list, &env),
+            Err(String::from("[Type Error] Differents types in list"))
+        );
+    }
+    
+
+    #[test]
+    fn check_push_valid_elements_in_list(){
+        let env = HashMap::new();
+        let list = List(vec![CInt(1),CInt(2)]);
+        let elem = CInt(3);
+        let push = Push(Box::new(list),Box::new(elem));
+        
+        assert!(check(push,&env).is_ok());
+    }
 
     #[test]
     fn check_tlist_comparison() {
