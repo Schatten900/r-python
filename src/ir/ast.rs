@@ -7,7 +7,7 @@ pub enum Type {
     TReal,
     TString,
     TList(Box<Type>),
-    TTuple(Vec<Type>),
+    TTuple(Box<Type>),
     TDict(Box<Type>,Box<Type>),
 }
 
@@ -44,6 +44,10 @@ pub enum Expression {
     LTE(Box<Expression>, Box<Expression>),
 
     /* Data Structure */
+    Tuple(Vec<Expression>),
+    AddTuple(Box<Expression>, Box<Expression>),
+    RemoveTuple(Box<Expression>,Box<Expression>),
+    LengthTuple(Box<Expression>),
     List(Option<Vec<Expression>>,Option<Box<Expression>>),
     Push(Box<Expression>,Box<Expression>),
     Pop(Box<Expression>),
@@ -59,4 +63,4 @@ pub enum Statement {
     IfThenElse(Box<Expression>, Box<Statement>, Option<Box<Statement>>),
     While(Box<Expression>, Box<Statement>),
     Sequence(Box<Statement>, Box<Statement>),
-}
+} 
