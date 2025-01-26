@@ -29,8 +29,8 @@ pub fn eval(exp: Expression, env: &Environment) -> Result<Expression, ErrorMessa
         Expression::AddTuple(tuple, new_element) => 
         eval_add_tuple(*tuple, *new_element, env),
 
-        Expression::RemoveTuple(tuple, index) => 
-        eval_remove_tuple(*tuple, *index, env),
+        Expression::GetTuple(tuple, index) => 
+        eval_get_tuple(*tuple, *index, env),
 
         Expression::LengthTuple(tuple) => 
         eval_length_tuple(*tuple, env),
@@ -136,31 +136,27 @@ fn eval_add_tuple(tuple_expr: Expression, new_element: Expression, env: &Environ
     }
 }
 
-fn eval_remove_tuple(
+
+fn eval_get_tuple(
     tuple_expr: Expression,
     index_expr: Expression,
     env: &Environment,
 ) -> Result<Expression, ErrorMessage> {
+    // Avalia a expressão da tupla
     let tuple_eval = eval(tuple_expr, env)?;
+    // Avalia a expressão do índice
     let index_eval = eval(index_expr, env)?;
 
     match (tuple_eval, index_eval) {
-        (Expression::Tuple(mut elements), Expression::CInt(index)) => {
-            if index < 0 || index >= elements.len() as i32 {
-                return Err(String::from("Index out of bounds"));
+        (Expression::Tuple(elements), Expression::CInt(index)) => {
+            if index < 0 || index as usize >= elements.len() {
+                Err(String::from("Index out of bounds"))
+            } else {
+                Ok(elements[index as usize].clone())
             }
-
-            let idx = index as usize;
-            elements.remove(idx);
-
-            Ok(Expression::Tuple(elements))
-        },
-        (Expression::Tuple(_), _) => {
-            Err(String::from("Index must be an integer"))
-        },
-        _ => {
-            Err(String::from("First argument must be a tuple"))
         }
+        (Expression::Tuple(_), _) => Err(String::from("Index must be an integer")),
+        _ => Err(String::from("First argument must be a tuple")),
     }
 }
 

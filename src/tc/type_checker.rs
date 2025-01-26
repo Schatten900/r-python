@@ -33,12 +33,12 @@ pub fn check(exp: Expression, env: &Environment) -> Result<Type, ErrorMessage> {
 
         Expression::AddTuple(tuple, new_element) => 
         check_add_tuple(*tuple, *new_element, env),
-        
-        Expression::RemoveTuple(tuple, index) => 
-        check_remove_tuple(*tuple, *index, env),
 
         Expression::LengthTuple(tuple) => 
         check_length_tuple(*tuple, env),
+
+        Expression::GetTuple(tuple, index) => 
+        check_get_tuple(*tuple, *index, env),
 
         Expression::List(elements,type_list)=>
         check_create_list(elements,type_list, env),
@@ -114,18 +114,21 @@ fn check_add_tuple(
     }
 }
 
-fn check_remove_tuple(
+fn check_get_tuple(
     tuple_expr: Expression,
     index_expr: Expression,
     env: &Environment,
 ) -> Result<Type, ErrorMessage> {
+    // Verifica o tipo da tupla
     let tuple_type = check(tuple_expr.clone(), env)?;
     match tuple_type {
         Type::TTuple(inner_type) => {
+            // Verifica o tipo do índice
             let index_type = check(index_expr.clone(), env)?;
             match index_type {
                 Type::TInteger => {
-                    Ok(Type::TTuple(inner_type))
+                    // Índice é válido, retorna o tipo dos elementos da tupla
+                    Ok(*inner_type)
                 }
                 _ => Err(String::from("[Type error] Index must be an integer")),
             }

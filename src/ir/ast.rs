@@ -46,7 +46,7 @@ pub enum Expression {
     /* Data Structure */
     Tuple(Vec<Expression>),
     AddTuple(Box<Expression>, Box<Expression>),
-    RemoveTuple(Box<Expression>,Box<Expression>),
+    GetTuple(Box<Expression>, Box<Expression>),
     LengthTuple(Box<Expression>),
     List(Option<Vec<Expression>>,Option<Box<Expression>>),
     Push(Box<Expression>,Box<Expression>),
