@@ -23,6 +23,9 @@ pub fn eval(exp: Expression, env: &Environment) -> Result<Expression, ErrorMessa
         Expression::LTE(lhs, rhs) => lte(*lhs, *rhs, env),
         Expression::Var(name) => lookup(name, env),
 
+        Expression::Set(elements) => 
+        eval_create_set(elements, env),
+
         Expression::Tuple(elements) => 
         eval_create_tuple(elements, env),
 
@@ -75,6 +78,42 @@ fn lookup(name: String, env: &Environment) -> Result<Expression, ErrorMessage> {
 }
 
 /* Data structure */
+fn eval_create_set(elements: Vec<Expression>, env: &Environment) -> Result<Expression, ErrorMessage> {
+    let mut evaluated_elements = Vec::new();
+    let mut type_set_eval: Option<Expression> = None;
+
+    for element in elements {
+        let eval_elem = eval(element, env)?;
+
+        if type_set_eval.is_none() {
+            type_set_eval = Some(eval_elem.clone());
+        }
+        
+        if evaluated_elements.contains(&eval_elem){
+            return Err(format!(
+                "Element {:?} is already in set",
+                eval_elem
+            ));
+        } else {
+            match (&eval_elem, type_set_eval.as_ref().unwrap()) {
+                (Expression::CInt(_), Expression::CInt(_)) |
+                (Expression::CReal(_), Expression::CReal(_)) |
+                (Expression::CString(_), Expression::CString(_)) => {
+                    evaluated_elements.push(eval_elem);
+                }
+                _ => {
+                    return Err(format!(
+                        "Type {:?} does not match type {:?}",
+                        eval_elem, type_set_eval.unwrap()
+                    ));
+                }
+            }
+        }    
+    }
+
+    Ok(Expression::Set(evaluated_elements))
+}
+
 fn eval_create_tuple(elements: Vec<Expression>, env: &Environment) -> Result<Expression, ErrorMessage> {
     let mut evaluated_elements = Vec::new();
     let mut type_list_eval: Option<Expression> = None;
@@ -85,7 +124,6 @@ fn eval_create_tuple(elements: Vec<Expression>, env: &Environment) -> Result<Exp
         if type_list_eval.is_none() {
             type_list_eval = Some(eval_elem.clone());
         }
-
         match (&eval_elem, type_list_eval.as_ref().unwrap()) {
             (Expression::CInt(_), Expression::CInt(_)) |
             (Expression::CReal(_), Expression::CReal(_)) |
@@ -576,6 +614,28 @@ mod tests {
     use crate::ir::ast::Statement::*;
     use approx::relative_eq;
 
+    #[test]
+    fn eval_create_valid_set() {
+        let env = HashMap::new();
+        let set = Expression::Set(vec![Expression::CInt(1), Expression::CInt(2), Expression::CInt(3)]);
+        let result = eval_create_set(vec![Expression::CInt(1), Expression::CInt(2), Expression::CInt(3)], &env);
+        assert_eq!(result, Ok(set));
+    }
+
+    #[test]
+    fn eval_create_invalid_set() {
+
+        let env = HashMap::new();
+
+        // Conjunto com elementos duplicados
+        let elements = vec![Expression::CInt(1), Expression::CInt(2), Expression::CInt(1)];
+
+        // Executa a função e espera um erro
+        let result = eval_create_set(elements, &env);
+
+        // Verifica se o resultado é um erro
+        assert!(result.is_err(), "Expected an error due to duplicate elements, but got {:?}", result);
+    }
 
     #[test]
     fn eval_add_valid_tuple(){

@@ -9,6 +9,7 @@ pub enum Type {
     TList(Box<Type>),
     TTuple(Box<Type>),
     TDict(Box<Type>,Box<Type>),
+    TSet(Box<Type>),
 }
 
 
@@ -44,6 +45,7 @@ pub enum Expression {
     LTE(Box<Expression>, Box<Expression>),
 
     /* Data Structure */
+    Set(Vec<Expression>),
     Tuple(Vec<Expression>),
     AddTuple(Box<Expression>, Box<Expression>),
     GetTuple(Box<Expression>, Box<Expression>),

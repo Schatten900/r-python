@@ -28,6 +28,9 @@ pub fn check(exp: Expression, env: &Environment) -> Result<Type, ErrorMessage> {
         Expression::GTE(l, r) => check_bin_relational_expression(*l, *r, env),
         Expression::LTE(l, r) => check_bin_boolean_expression(*l, *r, env),
 
+        Expression::Set(elements) =>
+        check_create_set(elements,env),
+
         Expression::Tuple(elements) => 
         check_create_tuple(elements, env),   
 
@@ -57,6 +60,29 @@ pub fn check(exp: Expression, env: &Environment) -> Result<Type, ErrorMessage> {
 
 
         _ => Err(String::from("not implemented yet")),
+    }
+}
+
+fn check_create_set(
+    maybe_set: Vec<Expression>,
+    env: &Environment,
+) -> Result<Type, ErrorMessage> {
+    match maybe_set {
+        vec => {
+            // Verifica o tipo do primeiro elemento do Set
+            let first_type = check(vec[0].clone(), env)?;
+
+            // Verifica se todos os elementos têm o mesmo tipo
+            for item in vec.iter() {
+                let item_type = check(item.clone(), env)?;
+                if item_type != first_type {
+                    return Err(String::from("[Type error] Different types in set"));
+                }
+            }
+
+            // Retorna o Set com o tipo homogêneo
+            Ok(Type::TSet(Box::new(first_type)))
+        }
     }
 }
 
@@ -313,6 +339,13 @@ mod tests {
     use crate::ir::ast::Type::*;
 
 
+    #[test]
+    fn check_create_valid_set(){
+        let env = HashMap::new();
+        let set = Set(vec![CInt(1), CInt(2), CInt(3)]);
+        assert_eq!(check(set, &env), Ok(TSet(Box::new(TInteger))));
+    }
+    
     #[test]
     fn check_create_valid_tuple(){
         let env = HashMap::new();
