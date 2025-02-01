@@ -241,30 +241,6 @@ fn check_hash_remove(hash: &mut Expression, key: Expression, _env: &Environment)
     }
 }
 
-
-fn check_create_tuple(
-    maybe_tuple: Vec<Expression>,
-    env: &Environment,
-) -> Result<Type, ErrorMessage> {
-    match maybe_tuple {
-        vec => {
-            // Verifica o tipo do primeiro elemento da tupla
-            let first_type = check(vec[0].clone(), env)?;
-
-            // Verifica se todos os elementos têm o mesmo tipo
-            for item in vec.iter() {
-                let item_type = check(item.clone(), env)?;
-                if item_type != first_type {
-                    return Err(String::from("[Type error] Different types in tuple"));
-                }
-            }
-
-            // Retorna a tupla com o tipo homogêneo
-            Ok(Type::TTuple(Box::new(first_type)))
-        }
-    }
-}
-
 fn check_add_tuple(
     tuple_expr: Expression,
     new_element: Expression,
@@ -279,13 +255,6 @@ fn check_add_tuple(
             }
 
             let first_element_type = check(elements[0].clone(), env)?;
-
-            if new_element_type != first_element_type {
-                return Err(format!(
-                    "Type {:?} does not match type {:?}",
-                    new_element_type, first_element_type
-                ));
-            }
 
             let tuple_type = Type::TTuple(Box::new(first_element_type));
             Ok(tuple_type)
