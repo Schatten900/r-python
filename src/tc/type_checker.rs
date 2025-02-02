@@ -48,8 +48,8 @@ pub fn check(exp: Expression, env: &Environment) -> Result<Type, ErrorMessage> {
 
         Expression::Tuple(elements) => 
         check_create_tuple(elements, env),   
-        Expression::AddTuple(tuple, new_element) => 
-        check_add_tuple(*tuple, *new_element, env),
+        //Expression::AddTuple(tuple, new_element) => 
+        //check_add_tuple(*tuple, *new_element, env),
         Expression::LengthTuple(tuple) => 
         check_length_tuple(*tuple, env),
         Expression::GetTuple(tuple, index) => 
@@ -241,6 +241,7 @@ fn check_hash_remove(hash: &mut Expression, key: Expression, _env: &Environment)
     }
 }
 
+
 fn check_add_tuple(
     tuple_expr: Expression,
     new_element: Expression,
@@ -250,13 +251,23 @@ fn check_add_tuple(
 
     match tuple_expr {
         Expression::Tuple(ref elements) => {
+            let mut vec_types = Vec::new();
+            
             if elements.is_empty() {
-                return Ok(Type::TTuple(Box::new(new_element_type)));
+                vec_types.push(new_element_type);
+                return Ok(Type::TTuple(vec_types));
             }
 
-            let first_element_type = check(elements[0].clone(), env)?;
+            //let first_element_type = check(elements[0].clone(), env)?;
+            
+            for elem in elements{
+                let type_elem = check(elem.clone(),env)?;
+                if !vec_types.contains(&type_elem)  {
+                    vec_types.push(type_elem);
+                }
+            }
 
-            let tuple_type = Type::TTuple(Box::new(first_element_type));
+            let tuple_type = Type::TTuple(vec_types);
             Ok(tuple_type)
         }
         _ => {
