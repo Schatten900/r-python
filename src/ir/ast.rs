@@ -10,7 +10,7 @@ pub enum Type {
     TReal,
     TString,
     TList(Box<Type>),
-    TTuple(Box<Type>),
+    TTuple(Vec<Type>),
     TDict(Box<Type>,Box<Type>),
     THash(Box<Type>, Box<Type>),
     TUnit,
