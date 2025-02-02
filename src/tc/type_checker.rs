@@ -46,8 +46,6 @@ pub fn check(exp: Expression, env: &Environment) -> Result<Type, ErrorMessage> {
         Expression::RemoveHash(mut hash, key)=>
         check_hash_remove(&mut *hash, *key, env),
 
-        Expression::Tuple(elements) => 
-        check_create_tuple(elements, env),   
         Expression::AddTuple(tuple, new_element) => 
         check_add_tuple(*tuple, *new_element, env),
         Expression::LengthTuple(tuple) => 
