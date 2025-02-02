@@ -45,11 +45,9 @@ pub fn check(exp: Expression, env: &Environment) -> Result<Type, ErrorMessage> {
         check_hash_set(*hash, *key, *value, env),
         Expression::RemoveHash(mut hash, key)=>
         check_hash_remove(&mut *hash, *key, env),
-
-        Expression::Tuple(elements) => 
-        check_create_tuple(elements, env),   
-        //Expression::AddTuple(tuple, new_element) => 
-        //check_add_tuple(*tuple, *new_element, env),
+   
+        Expression::AddTuple(tuple, new_element) => 
+        check_add_tuple(*tuple, *new_element, env),
         Expression::LengthTuple(tuple) => 
         check_length_tuple(*tuple, env),
         Expression::GetTuple(tuple, index) => 
@@ -254,20 +252,10 @@ fn check_add_tuple(
             let mut vec_types = Vec::new();
             
             if elements.is_empty() {
-                vec_types.push(new_element_type);
-                return Ok(Type::TTuple(vec_types));
+                return Ok(Type::TTuple(vec![new_element_type]));
             }
 
-            //let first_element_type = check(elements[0].clone(), env)?;
-            
-            for elem in elements{
-                let type_elem = check(elem.clone(),env)?;
-                if !vec_types.contains(&type_elem)  {
-                    vec_types.push(type_elem);
-                }
-            }
-
-            let tuple_type = Type::TTuple(vec_types);
+            let tuple_type = Type::TTuple(vec![new_element_type]);
             Ok(tuple_type)
         }
         _ => {
@@ -304,7 +292,7 @@ fn check_get_tuple(
             match index_type {
                 Type::TInteger => {
                     // Índice é válido, retorna o tipo dos elementos da tupla
-                    Ok(*inner_type)
+                    Ok(Type::TTuple(inner_type))
                 }
                 _ => Err(String::from("[Type error] Index must be an integer")),
             }

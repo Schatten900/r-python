@@ -220,14 +220,10 @@ fn eval_remove_hash(
 
 fn eval_create_tuple(elements: Vec<Expression>, env: &Environment) -> Result<Expression, ErrorMessage> {
     let mut evaluated_elements = Vec::new();
-    let mut type_list_eval: Option<Expression> = None;
 
     for element in elements {
         let eval_elem = eval(element, env)?;
 
-        if type_list_eval.is_none() {
-            type_list_eval = Some(eval_elem.clone());
-        }
         evaluated_elements.push(eval_elem);
     }
 
@@ -242,7 +238,6 @@ fn eval_add_tuple(tuple_expr: Expression, new_element: Expression, env: &Environ
             if elements.is_empty() {
                 return Ok(Expression::Tuple(vec![eval_new_element]));
             }
-            let first_element = &elements[0];
             let mut updated_elements = elements.clone();
             updated_elements.push(eval_new_element);
             return Ok(Expression::Tuple(updated_elements));              
