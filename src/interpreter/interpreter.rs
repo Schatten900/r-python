@@ -26,15 +26,6 @@ pub fn eval(exp: Expression, env: &Environment) -> Result<Expression, ErrorMessa
         Expression::Tuple(elements) => 
         eval_create_tuple(elements, env),
 
-        Expression::AddTuple(tuple, new_element) => 
-        eval_add_tuple(*tuple, *new_element, env),
-
-        Expression::LengthTuple(tuple) => 
-        eval_length_tuple(*tuple, env),
-
-        Expression::GetTuple(tuple, index) => 
-        eval_get_tuple(*tuple, *index, env),
-
         Expression::List(elements_list,type_list)=>
         eval_create_list(elements_list,type_list, env),
 
@@ -44,8 +35,8 @@ pub fn eval(exp: Expression, env: &Environment) -> Result<Expression, ErrorMessa
         Expression::Pop(list)=>
         eval_pop_list(*list,env),
 
-        Expression::Get(list,index)=>
-        eval_get_element_list(*list,*index,env),
+        Expression::Get(data_strucutre,index)=>
+        eval_get_element_list(*data_strucutre,*index,env),
 
         Expression::Len(list)=>
         eval_len_list(*list,env),
@@ -219,6 +210,7 @@ fn eval_remove_hash(
 }
 
 fn eval_create_tuple(elements: Vec<Expression>, env: &Environment) -> Result<Expression, ErrorMessage> {
+    
     let mut evaluated_elements = Vec::new();
 
     for element in elements {
@@ -228,63 +220,6 @@ fn eval_create_tuple(elements: Vec<Expression>, env: &Environment) -> Result<Exp
     }
 
     Ok(Expression::Tuple(evaluated_elements))
-}
-
-fn eval_add_tuple(tuple_expr: Expression, new_element: Expression, env: &Environment) -> Result<Expression, ErrorMessage> {
-    let eval_new_element = eval(new_element, env)?;
-
-    match tuple_expr {
-        Expression::Tuple(ref elements) => {
-            if elements.is_empty() {
-                return Ok(Expression::Tuple(vec![eval_new_element]));
-            }
-            let mut updated_elements = elements.clone();
-            updated_elements.push(eval_new_element);
-            return Ok(Expression::Tuple(updated_elements));              
-        }
-        _ => {
-            return Err("Provided expression is not a tuple".to_string());
-        }
-    }
-}
-
-
-fn eval_length_tuple(
-    tuple_expr: Expression,
-    env: &Environment,
-) -> Result<Expression, ErrorMessage> {
-    let tuple_eval = eval(tuple_expr, env)?;
-
-    match tuple_eval {
-        Expression::Tuple(elements) => {
-            Ok(Expression::CInt(elements.len() as i32))
-        }
-        _ => {
-            Err(String::from("Provided expression is not a tuple"))
-        }
-    }
-}
-
-fn eval_get_tuple(
-    tuple_expr: Expression,
-    index_expr: Expression,
-    env: &Environment,
-) -> Result<Expression, ErrorMessage> {
-    // Avalia a expressão da tupla
-    let tuple_eval = eval(tuple_expr, env)?;
-    // Avalia a expressão do índice
-    let index_eval = eval(index_expr, env)?;
-    match (tuple_eval, index_eval) {
-        (Expression::Tuple(elements), Expression::CInt(index)) => {
-            if index < 0 || index as usize >= elements.len() {
-                Err(String::from("Index out of bounds"))
-            } else {
-                Ok(elements[index as usize].clone())
-            }
-        }
-        (Expression::Tuple(_), _) => Err(String::from("Index must be an integer")),
-        _ => Err(String::from("First argument must be a tuple")),
-    }
 }
 
 fn eval_create_list(
@@ -298,7 +233,6 @@ fn eval_create_list(
 
             let type_list_eval = match *type_list {
                 type_aux => eval(type_aux, env)?, 
-                //_ => return Err(String::from("Type for the list must be provided"))
             };
 
             for elem in vec {
@@ -320,7 +254,6 @@ fn eval_create_list(
             }    
             Ok(Expression::List(eval_elements, Box::new(type_list_eval)))
         }
-        //_ => Err(String::from("First argument must be a list")),
     }
 }
 
@@ -399,17 +332,28 @@ fn eval_get_element_list(list: Expression, index: Expression, env: &Environment)
                 }
             }
         },
-        (Expression::List(_,_),_)=>{
-            Err(String::from("Index must be an integer"))
-        },
+        (Expression::Tuple(elements), Expression::CInt(index)) => {
+            if index < 0 || index as usize >= elements.len() {
+                Err(String::from("Index out of bounds"))
+            } else {
+                Ok(elements[index as usize].clone())
+            }
+        }
+
+        (Expression::Tuple(_), _) => Err(String::from("Index must be an integer")),
+        (Expression::List(_,_),_)=>Err(String::from("Index must be an integer")),
         _=> Err(String::from("First argument must be a list"))
     }
 }
 
-fn eval_len_list(list: Expression,env: &Environment)->Result<Expression,ErrorMessage>{
-    let list_type = eval(list,env)?;
-    match list_type{
+fn eval_len_list(data_structure: Expression,env: &Environment)->Result<Expression,ErrorMessage>{
+    let data_structure_type = eval(data_structure,env)?;
+    match data_structure_type{
         Expression::List(vec,_)=>{
+            let elem = vec.len() as i32;
+            Ok(Expression::CInt(elem))
+        }
+        Expression::Tuple(vec)=>{
             let elem = vec.len() as i32;
             Ok(Expression::CInt(elem))
         }
@@ -819,44 +763,39 @@ mod tests {
     }
 
     #[test]
-    fn eval_add_valid_tuple(){
+    fn eval_create_tuple(){
+        let tuple = Tuple(vec![CString("Rust".to_string()),CInt(5),CReal(5.5)]);
         let env = HashMap::new();
-        let mut tuple = Expression::Tuple(vec![]);
-        tuple = eval(Expression::AddTuple(Box::new(tuple),Box::new(Expression::CInt(4))),&env).unwrap();
-
-        assert_eq!(tuple,Expression::Tuple(vec![Expression::CInt(4)]));
+        assert_eq!(eval(tuple,&env).unwrap(),
+        Tuple(vec![CString("Rust".to_string()),CInt(5),CReal(5.5)]));
     }
-
-    #[test]
-    fn eval_add_invalid_tuple(){
-        let env = HashMap::new();
-        let tuple = Expression::Tuple(vec![CInt(5)]);
-        let result = eval(Expression::AddTuple(Box::new(tuple),Box::new(Expression::CReal(4.5))),&env);
-
-        assert!(result.is_err());
-        assert_eq!(
-            result.unwrap_err(),
-            "Type CReal(4.5) does not match type CInt(5)"
-        );
-
-    }
-
 
     #[test]
     fn eval_len_tuple(){
         let env = HashMap::new();
-        let list = Expression::Tuple(vec![
+        let tuple = Expression::Tuple(vec![
             Expression::CString("Rust".to_string()),
             Expression::CString("Java".to_string()),
             Expression::CString("Python".to_string())]);
-        let tam_list = eval(Expression::LengthTuple(Box::new(list)),&env).unwrap();
+        let tam_tuple = eval(Expression::Len(Box::new(tuple)),&env).unwrap();
 
-        assert_eq!(tam_list,Expression::CInt(3));
+        assert_eq!(tam_tuple,Expression::CInt(3));
+    }
+
+    #[test]
+    fn eval_get_element_tuple(){
+        let env = HashMap::new();
+        let idx = Expression::CInt(1);
+        let tuple = Expression::Tuple(vec!
+            [Expression::CInt(5),Expression::CInt(8)]);
+
+        let elem = eval(Expression::Get(Box::new(tuple),Box::new(idx)),&env).unwrap();
+
+        assert_eq!(elem,Expression::CInt(8));
     }
 
     #[test]
     fn eval_append_list() {
-
         let type_list = Box::new(Expression::CInt(0));
         let mut list = Expression::List(vec![
             Expression::CInt(5), Expression::CInt(10), Expression::CInt(15)],type_list);
@@ -948,18 +887,6 @@ mod tests {
         let list3 = eval(Append(Box::new(list1),Box::new(list2)),&env).unwrap();
 
         assert_eq!(list3,List(vec![CInt(5)],type_list));
-    }
-
-    #[test]
-    fn eval_get_element_tuple(){
-        let env = HashMap::new();
-        let idx = Expression::CInt(1);
-        let tuple = Expression::Tuple(vec!
-            [Expression::CInt(5),Expression::CInt(8)]);
-
-        let elem = eval(Expression::GetTuple(Box::new(tuple),Box::new(idx)),&env).unwrap();
-
-        assert_eq!(elem,Expression::CInt(8));
     }
 
     #[test]

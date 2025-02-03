@@ -49,12 +49,9 @@ pub enum Expression {
     LTE(Box<Expression>, Box<Expression>),
 
     /* Data Structure */
-    Tuple(Vec<Expression>),
-    //AddTuple(Box<Expression>, Box<Expression>),
-    LengthTuple(Box<Expression>),
-    GetTuple(Box<Expression>,Box<Expression>),
-    
     List(Vec<Expression>,Box<Expression>),
+    Tuple(Vec<Expression>),
+    
     Append(Box<Expression>,Box<Expression>),
     Pop(Box<Expression>),
     Get(Box<Expression>,Box<Expression>),

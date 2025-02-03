@@ -46,23 +46,19 @@ pub fn check(exp: Expression, env: &Environment) -> Result<Type, ErrorMessage> {
         Expression::RemoveHash(mut hash, key)=>
         check_hash_remove(&mut *hash, *key, env),
    
-        Expression::AddTuple(tuple, new_element) => 
-        check_add_tuple(*tuple, *new_element, env),
-        Expression::LengthTuple(tuple) => 
-        check_length_tuple(*tuple, env),
-        Expression::GetTuple(tuple, index) => 
-        check_get_tuple(*tuple, *index, env),
-
+        Expression::Tuple(elements) => check_create_tuple(elements,env),
         Expression::List(elements,type_list)=>
         check_create_list(elements,type_list, env),
         Expression::Append(list,elem)=>
         check_append_list(*list,*elem,env),
         Expression::Pop(list)=>
         check_pop_list(*list,env),
-        Expression::Get(list,index ) =>
-        check_get_list(*list,*index,env),
-        Expression::Len(list) =>
-        check_len_list(*list,env),
+
+        Expression::Get(data_structure,index ) =>
+        check_get(*data_structure,*index,env),
+
+        Expression::Len(data_structure) =>
+        check_len(*data_structure,env),
 
         _ => Err(String::from("not implemented yet")),
     }
@@ -239,23 +235,25 @@ fn check_hash_remove(hash: &mut Expression, key: Expression, _env: &Environment)
     }
 }
 
-
-fn check_add_tuple(
-    tuple_expr: Expression,
-    new_element: Expression,
+fn check_create_tuple(
+    maybe_tuple: Vec<Expression>,
     env: &Environment,
 ) -> Result<Type, ErrorMessage> {
-    let new_element_type = check(new_element, env)?;
-
-    match tuple_expr {
-        Expression::Tuple(ref elements) => {
-            let mut vec_types = Vec::new();
-            
+    
+    let mut vec_types = Vec::new();
+    match maybe_tuple {
+        elements => {
             if elements.is_empty() {
-                return Ok(Type::TTuple(vec![new_element_type]));
+                return Ok(Type::TTuple(vec![]));
+            }
+            for elem in elements{
+                let type_elem = check(elem.clone(),&env)?;
+                if !vec_types.contains(&type_elem){
+                    vec_types.push(type_elem);
+                }
             }
 
-            let tuple_type = Type::TTuple(vec![new_element_type]);
+            let tuple_type = Type::TTuple(vec_types);
             Ok(tuple_type)
         }
         _ => {
@@ -264,42 +262,6 @@ fn check_add_tuple(
     }
 }
 
-fn check_length_tuple(
-    tuple_expr: Expression,
-    env: &Environment,
-) -> Result<Type, ErrorMessage> {
-    let tuple_type = check(tuple_expr.clone(), env)?;
-    
-    match tuple_type {
-        Type::TTuple(_inner_type) => {
-            Ok(Type::TInteger)
-        }
-        _ => Err(String::from("[Type error] Argument must be a tuple")),
-    }
-}
-
-fn check_get_tuple(
-    tuple_expr: Expression,
-    index_expr: Expression,
-    env: &Environment,
-) -> Result<Type, ErrorMessage> {
-    // Verifica o tipo da tupla
-    let tuple_type = check(tuple_expr.clone(), env)?;
-    match tuple_type {
-        Type::TTuple(inner_type) => {
-            // Verifica o tipo do índice
-            let index_type = check(index_expr.clone(), env)?;
-            match index_type {
-                Type::TInteger => {
-                    // Índice é válido, retorna o tipo dos elementos da tupla
-                    Ok(Type::TTuple(inner_type))
-                }
-                _ => Err(String::from("[Type error] Index must be an integer")),
-            }
-        }
-        _ => Err(String::from("[Type error] First argument must be a tuple")),
-    }
-}
 
 fn check_create_list(
     maybe_list: Vec<Expression>,
@@ -391,23 +353,35 @@ fn check_pop_list(list: Expression, env: &Environment)
     }
 }
 
-fn check_get_list(list: Expression, index: Expression,env: &Environment)
+fn check_get(data_structure: Expression, index: Expression,env: &Environment)
 ->Result<Type,ErrorMessage>{
-    let list_type = check(list,env)?;
+    let data_structure_type = check(data_structure,env)?;
     let index_type = check(index,env)?;
-    match(list_type,index_type){
+
+    match(data_structure_type,&index_type){
         (Type::TList(boxed_type),Type::TInteger)=>{
             Ok(*boxed_type)
+        }
+        (Type::TTuple(_),Type::TInteger)=>{
+            match index_type {
+                Type::TInteger => {
+                    Ok(Type::TBool)
+                }
+                _ => Err(String::from("[Type error] Index must be an integer")),
+            }
         }
         _=> Err(String::from("[Type error] index must be integer"))
     }
 }
 
-fn check_len_list(list:Expression, env: &Environment)->
+fn check_len(data_structure:Expression, env: &Environment)->
 Result<Type, String>{
-    let list_type = check(list,env)?;
-    match list_type{
+    let data_structure_type = check(data_structure,env)?;
+    match data_structure_type{
         Type::TList(_)=>{
+            Ok(Type::TInteger)
+        }
+        Type::TTuple(_)=>{
             Ok(Type::TInteger)
         }
         _=>Err(String::from("[Type error] first argument must be a list"))
@@ -625,21 +599,15 @@ mod tests {
         assert_eq!(result, Err(String::from("Key not found in Hash")));
     }
         
-    #[test]
-    fn check_create_valid_tuple(){
-        let env = HashMap::new();
-        let tuple = Tuple(vec![CInt(1), CInt(2), CInt(3)]);
-        assert_eq!(check(tuple, &env), Ok(TTuple(Box::new(TInteger))));
-    }
 
     #[test]
-    fn check_create_invalid_tuple(){
-        let env = HashMap::new();
-        let tuple = Tuple(vec![CInt(1), CString("Rust".to_string()), CInt(3)]);
-        assert_eq!(check(tuple, &env), 
-        Err(String::from("[Type error] Different types in tuple")));
-    }
+    fn check_tlist_comparison_different_types() {
+        let t_list1 = TList(Box::new(TInteger));
+        let t_list2 = TList(Box::new(TBool));
 
+        assert_eq!(t_list1 == t_list2, false);
+    }
+    
     #[test]
     fn check_create_valid_list() {
         let env = HashMap::new();
@@ -721,17 +689,6 @@ mod tests {
         assert!(check(pop,&env).is_ok());
     }
 
-    #[test]
-    fn check_get_element_tuple(){
-        let env = HashMap::new();
-        let idx = Expression::CInt(1);
-        let tuple = Expression::Tuple(vec!
-            [Expression::CInt(5),Expression::CInt(8)]);
-
-        let elem = check(Expression::GetTuple(Box::new(tuple),Box::new(idx)),&env).unwrap();
-
-        assert_eq!(elem,TInteger);
-    }
 
     #[test]
     fn check_tlist_comparison() {
@@ -742,27 +699,36 @@ mod tests {
     }
 
     #[test]
-    fn check_tlist_comparison_different_types() {
-        let t_list1 = TList(Box::new(TInteger));
-        let t_list2 = TList(Box::new(TBool));
+    fn check_create_valid_tuple(){
+        let env = HashMap::new();
+        let elements = vec![CInt(0),CReal(2.5),CString("Rust".to_string())];
+        let tuple = check(
+            Tuple(elements),&env)
+            .unwrap();
+        assert_eq!(tuple,TTuple(vec![TInteger,TReal,TString]));
+    }
 
-        assert_eq!(t_list1 == t_list2, false);
+    #[test]
+    fn check_create_invalid_tuple(){
+        let env = HashMap::new();
+        let elements = vec![CInt(0),CReal(2.5),CString("Rust".to_string())];
+        let tuple = check(Tuple(elements),&env)
+            .unwrap();
+        assert_ne!(tuple,TTuple(vec![TInteger,TString,TReal]));
     }
 
     #[test]
     fn check_ttuple_comparison() {
-        let t_tuple1 = TTuple(Box::new(TInteger));
-        let t_tuple2 = TTuple(Box::new(TInteger));
-
-        assert_eq!(t_tuple1 == t_tuple2, true);
+        let tuple1 = TTuple(vec![TInteger,TBool]);
+        let tuple2 = TTuple(vec![TInteger,TBool]);
+        assert_eq!(tuple1 == tuple2, true);
     }
 
     #[test]
     fn check_ttuple_comparison_different_types() {
-        let t_tuple1 = TTuple(Box::new(TInteger));
-        let t_tuple2 = TTuple(Box::new(TBool));
-
-        assert_eq!(t_tuple1 == t_tuple2, false);
+        let tuple1 = TTuple(vec![TInteger,TBool]);
+        let tuple2 = TTuple(vec![TInteger,TReal]);
+        assert_eq!(tuple1 == tuple2, false);
     }
 
     #[test]
