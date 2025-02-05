@@ -624,16 +624,9 @@ mod tests {
 
     #[test]
     fn eval_create_invalid_set() {
-
         let env = HashMap::new();
-
-        // Conjunto com elementos duplicados
         let elements = vec![Expression::CInt(1), Expression::CInt(2), Expression::CInt(1)];
-
-        // Executa a função e espera um erro
         let result = eval_create_set(elements, &env);
-
-        // Verifica se o resultado é um erro
         assert!(result.is_err(), "Expected an error due to duplicate elements, but got {:?}", result);
     }
 

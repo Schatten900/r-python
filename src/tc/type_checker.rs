@@ -69,18 +69,14 @@ fn check_create_set(
 ) -> Result<Type, ErrorMessage> {
     match maybe_set {
         vec => {
-            // Verifica o tipo do primeiro elemento do Set
             let first_type = check(vec[0].clone(), env)?;
 
-            // Verifica se todos os elementos têm o mesmo tipo
             for item in vec.iter() {
                 let item_type = check(item.clone(), env)?;
                 if item_type != first_type {
                     return Err(String::from("[Type error] Different types in set"));
                 }
             }
-
-            // Retorna o Set com o tipo homogêneo
             Ok(Type::TSet(Box::new(first_type)))
         }
     }
