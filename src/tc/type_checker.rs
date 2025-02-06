@@ -135,6 +135,20 @@ fn check_dict_get(dict: Expression, key: Expression, _env: &Environment) -> Resu
                 match value {
                     (Expression::CString(_), Expression::CInt(_)) => Ok(Type::TInteger),
                     (Expression::CString(_), Expression::CString(_)) => Ok(Type::TString),
+                    (Expression::CString(_), Expression::CReal(_)) => Ok(Type::TReal),
+                    (Expression::CString(_), Expression::CTrue | Expression::CFalse) => Ok(Type::TBool),
+                    (Expression::CString(_), Expression::List(_, _)) => Ok(Type::TList(Box::new(Type::TInteger))),
+                    (Expression::CString(_), Expression::Tuple(_)) => Ok(Type::TTuple(vec![Type::TInteger])),
+                    (Expression::CString(_), Expression::Dict(_)) => Ok(Type::TDict(Box::new(Type::TInteger), Box::new(Type::TString))),
+                    (Expression::CString(_), Expression::Hash(_)) => Ok(Type::THash(Box::new(Type::TInteger), Box::new(Type::TString))),
+                    (Expression::CInt(_), Expression::CInt(_)) => Ok(Type::TInteger),
+                    (Expression::CInt(_), Expression::CString(_)) => Ok(Type::TString),
+                    (Expression::CInt(_), Expression::CReal(_)) => Ok(Type::TReal),
+                    (Expression::CInt(_), Expression::CTrue | Expression::CFalse) => Ok(Type::TBool),
+                    (Expression::CInt(_), Expression::List(_, _)) => Ok(Type::TList(Box::new(Type::TInteger))),
+                    (Expression::CInt(_), Expression::Tuple(_)) => Ok(Type::TTuple(vec![Type::TInteger])),
+                    (Expression::CInt(_), Expression::Dict(_)) => Ok(Type::TDict(Box::new(Type::TInteger), Box::new(Type::TString))),
+                    (Expression::CInt(_), Expression::Hash(_)) => Ok(Type::THash(Box::new(Type::TInteger), Box::new(Type::TString))),
                     _ => Err(String::from("Incompatible value type in Dict")),
                 }
             } else {
@@ -152,6 +166,12 @@ fn check_hash_get(hash: Expression, key: Expression, _env: &Environment) -> Resu
                 return match value {
                     Expression::CInt(_) => Ok(Type::TInteger),
                     Expression::CString(_) => Ok(Type::TString),
+                    Expression::CReal(_) => Ok(Type::TReal),
+                    Expression::CTrue | Expression::CFalse => Ok(Type::TBool),
+                    Expression::List(_, _) => Ok(Type::TList(Box::new(Type::TInteger))),
+                    Expression::Tuple(_) => Ok(Type::TTuple(vec![Type::TInteger])),
+                    Expression::Dict(_) => Ok(Type::TDict(Box::new(Type::TInteger), Box::new(Type::TString))),
+                    Expression::Hash(_) => Ok(Type::THash(Box::new(Type::TInteger), Box::new(Type::TString))),
                     _ => Err(String::from("Incompatible value type in Hash")),
                 };
             }
@@ -166,13 +186,69 @@ fn check_dict_set(mut dict: Expression, key: Expression, value: Expression, _env
         Expression::Dict(Some(ref mut map)) => {
             if let Some(existing_value) = map.iter_mut().find(|(k, _)| *k == key) {
                 match (&existing_value.1, &value) {
-                    (Expression::CInt(_), Expression::CInt(_)) => {
+                    (Expression::CString(_), Expression::CInt(_)) => {
                         existing_value.1 = value; 
                         Ok(Type::TInteger)
                     }
                     (Expression::CString(_), Expression::CString(_)) => {
                         existing_value.1 = value;
                         Ok(Type::TString)
+                    }
+                    (Expression::CString(_), Expression::CReal(_)) => {
+                        existing_value.1 = value;
+                        Ok(Type::TReal)
+                    }
+                    (Expression::CString(_), Expression::CTrue | Expression::CFalse) => {
+                        existing_value.1 = value;
+                        Ok(Type::TBool)
+                    }
+                    (Expression::CString(_), Expression::List(_, _)) => {
+                        existing_value.1 = value;
+                        Ok(Type::TList(Box::new(Type::TInteger)))
+                    }
+                    (Expression::CString(_), Expression::Tuple(_)) => {
+                        existing_value.1 = value;
+                        Ok(Type::TTuple(vec![Type::TInteger]))
+                    }
+                    (Expression::CString(_), Expression::Dict(_)) => {
+                        existing_value.1 = value;
+                        Ok(Type::TDict(Box::new(Type::TInteger), Box::new(Type::TString)))
+                    }
+                    (Expression::CString(_), Expression::Hash(_)) => {
+                        existing_value.1 = value;
+                        Ok(Type::THash(Box::new(Type::TInteger), Box::new(Type::TString)))
+                    }
+                    (Expression::CInt(_), Expression::CInt(_)) => {
+                        existing_value.1 = value; 
+                        Ok(Type::TInteger)
+                    }
+                    (Expression::CInt(_), Expression::CString(_)) => {
+                        existing_value.1 = value;
+                        Ok(Type::TString)
+                    }
+                    (Expression::CInt(_), Expression::CReal(_)) => {
+                        existing_value.1 = value;
+                        Ok(Type::TReal)
+                    }
+                    (Expression::CInt(_), Expression::CTrue | Expression::CFalse) => {
+                        existing_value.1 = value;
+                        Ok(Type::TBool)
+                    }
+                    (Expression::CInt(_), Expression::List(_, _)) => {
+                        existing_value.1 = value;
+                        Ok(Type::TList(Box::new(Type::TInteger)))
+                    }
+                    (Expression::CInt(_), Expression::Tuple(_)) => {
+                        existing_value.1 = value;
+                        Ok(Type::TTuple(vec![Type::TInteger]))
+                    }
+                    (Expression::CInt(_), Expression::Dict(_)) => {
+                        existing_value.1 = value;
+                        Ok(Type::TDict(Box::new(Type::TInteger), Box::new(Type::TString)))
+                    }
+                    (Expression::CInt(_), Expression::Hash(_)) => {
+                        existing_value.1 = value;
+                        Ok(Type::THash(Box::new(Type::TInteger), Box::new(Type::TString)))
                     }
                     _ => Err(String::from("Incompatible value type for Dict")),
                 }
@@ -190,9 +266,13 @@ fn check_hash_set(hash: Expression, key: Expression, value: Expression, _env: &E
             if let Some(existing_value) = map.iter().find(|(k, _)| **k == key) {
                 match (&existing_value.1, &value) {
                     (Expression::CInt(_), Expression::CInt(_)) => Ok(Type::TInteger),
-                    (Expression::CString(_), Expression::CString(_)) => {
-                        Ok(Type::TString)
-                    },
+                    (Expression::CString(_), Expression::CString(_)) => Ok(Type::TString),
+                    (Expression::CReal(_), Expression::CReal(_)) => Ok(Type::TReal),
+                    (Expression::CTrue | Expression::CFalse, Expression::CTrue | Expression::CFalse) => Ok(Type::TBool),
+                    (Expression::List(_, _), Expression::List(_, _)) => Ok(Type::TList(Box::new(Type::TInteger))),
+                    (Expression::Tuple(_), Expression::Tuple(_)) => Ok(Type::TTuple(vec![Type::TInteger])),
+                    (Expression::Dict(_), Expression::Dict(_)) => Ok(Type::TDict(Box::new(Type::TInteger), Box::new(Type::TString))),
+                    (Expression::Hash(_), Expression::Hash(_)) => Ok(Type::THash(Box::new(Type::TInteger), Box::new(Type::TString))),
                     _ => Err(String::from("Incompatible value type for Hash")),
                 }
             } else {
@@ -209,6 +289,13 @@ fn check_dict_remove(dict: Expression, key: Expression, _env: &Environment) -> R
             match (k, &key) {
                 (Expression::CString(s1), Expression::CString(s2)) => s1 == s2,
                 (Expression::CInt(i1), Expression::CInt(i2)) => i1 == i2,
+                (Expression::CReal(r1), Expression::CReal(r2)) => r1 == r2,
+                (Expression::CTrue, Expression::CTrue) => true,
+                (Expression::CFalse, Expression::CFalse) => true,
+                (Expression::List(_, _), Expression::List(_, _)) => true,
+                (Expression::Tuple(_), Expression::Tuple(_)) => true,
+                (Expression::Dict(_), Expression::Dict(_)) => true,
+                (Expression::Hash(_), Expression::Hash(_)) => true,
                 _ => false,
             }
         }) {
@@ -256,9 +343,9 @@ fn check_create_tuple(
             let tuple_type = Type::TTuple(vec_types);
             Ok(tuple_type)
         }
-        _ => {
-            return Err("Provided expression is not a tuple".to_string());
-        }
+        //_ => {
+            //return Err("Provided expression is not a tuple".to_string());
+        //}
     }
 }
 
