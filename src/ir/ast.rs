@@ -1,118 +1,23 @@
-use std::collections::HashMap;
-use std::hash::{Hash, Hasher};
-use std::collections::HashSet;
-
 pub type Name = String;
 
 use nom::IResult;
+use std::hash::{Hash, Hasher};
+use std::collections::HashSet;
 use std::collections::HashMap;
 
-#[derive(Clone)]
-pub struct Frame<A> {
-    pub parent_function: Option<Function>,
-    pub parent_key: Option<(Name, i32)>,
-    pub variables: HashMap<Name, A>,
+#[derive(Clone, Debug, PartialEq)]
+pub enum EnvValue {
+    Exp(Expression),
+    Func(Function),
 }
 
-impl<A> Frame<A> {
-    pub fn new(func: Option<Function>, key: Option<(Name, i32)>) -> Frame<A> {
-        let variables: HashMap<Name, A> = HashMap::new();
-
-        Frame {
-            parent_function: func,
-            parent_key: key,
-            variables,
-        }
-    }
-}
-
-#[derive(Clone)]
-pub struct Environment<A> {
-    pub scope: Function,
-    pub recursion: i32,
-    pub stack: HashMap<(Name, i32), Frame<A>>,
-}
-
-impl<A> Environment<A> {
-    pub fn new() -> Environment<A> {
-        let frame: Frame<A> = Frame::new(None, None);
-        let scope = Function::new();
-
-        Environment {
-            scope,
-            recursion: 0,
-            stack: HashMap::from([(("__main__".to_string(), 0), frame)]),
-        }
-    }
-
-    pub fn scope_key(&self) -> (Name, i32) {
-        (self.scope_name(), self.recursion)
-    }
-
-    pub fn scope_name(&self) -> Name {
-        self.scope.name.clone()
-    }
-
-    pub fn scope_return(&self) -> Option<&A> {
-        self.search_frame(self.scope_name())
-    }
-
-    pub fn get_frame(&self, key: (Name, i32)) -> &Frame<A> {
-        self.stack.get(&key).unwrap()
-    }
-
-    pub fn search_frame(&self, name: Name) -> Option<&A> {
-        self.stack
-            .get(&self.scope_key())
-            .unwrap()
-            .variables
-            .get(&name)
-    }
-
-    pub fn insert_frame(&mut self, func: Function) {
-        let new_frame: Frame<A> = Frame::new(Some(self.scope.clone()), Some(self.scope_key()));
-
-        self.stack
-            .insert((func.name.clone(), self.scope_key().1 + 1), new_frame);
-        self.scope = func;
-        self.recursion += 1;
-    }
-
-    pub fn remove_frame(&mut self) {
-        let recursion = self.scope_key().1 - 1;
-        self.scope = self
-            .stack
-            .remove(&self.scope_key())
-            .unwrap()
-            .parent_function
-            .unwrap();
-        self.recursion = recursion;
-    }
-
-    pub fn insert_variable(&mut self, name: Name, kind: A) {
-        if let Some(frame) = self.stack.get_mut(&self.scope_key()) {
-            frame.variables.insert(name, kind);
-        }
-    }
-}
+pub type Environment = HashMap<String, (Option<EnvValue>, Type)>;
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct Function {
-    pub name: Name,
-    pub kind: Option<Type>,
+    pub kind: Type,
     pub params: Option<Vec<(Name, Type)>>,
-    pub body: Option<Box<Statement>>,
-}
-
-impl Function {
-    pub fn new() -> Function {
-        Function {
-            name: "__main__".to_string(),
-            kind: None,
-            params: None,
-            body: None,
-        }
-    }
+    pub body: Box<Statement>,
 }
 
 #[derive(Debug, PartialEq, Clone)]
@@ -121,16 +26,15 @@ pub enum Type {
     TBool,
     TReal,
     TString,
-    TFunction(Box<Option<Type>>, Vec<Type>),
+    TFunction,
+    NotDefine,
     TList(Box<Type>),
     TTuple(Vec<Type>),
     TSet(Box<Type>),
-    // TDict(Box<Type>,Box<Type>),
     THash(Box<Type>, Box<Type>),
     TUnit,
 }
 
-//#[derive(Debug, PartialEq, Clone)]
 #[derive(Debug, Clone)]
 pub enum Expression {
     /* constants */
@@ -139,7 +43,6 @@ pub enum Expression {
     CInt(i32),
     CReal(f64),
     CString(String),
-    
 
     /* variable reference */
     Var(Name),
@@ -166,20 +69,23 @@ pub enum Expression {
     LTE(Box<Expression>, Box<Expression>),
 
     /* Data Structure */
-    List(Vec<Expression>,Box<Expression>),
+    List(Vec<Expression>),
     Tuple(Vec<Expression>),
     Set(Vec<Expression>),
-    
+
+    Union(Box<Expression>,Box<Expression>),
+    Intersection(Box<Expression>,Box<Expression>),
+    Difference(Box<Expression>,Box<Expression>),
+    Disjunction(Box<Expression>,Box<Expression>),
+    Insert(Box<Expression>,Box<Expression>),
+
     Append(Box<Expression>,Box<Expression>),
-    Pop(Box<Expression>),
+    Concat(Box<Expression>,Box<Expression>),
+    PopBack(Box<Expression>),
+    PopFront(Box<Expression>),
     Get(Box<Expression>,Box<Expression>),
     Len(Box<Expression>),
-    
-    // Dict(Option<Vec<(Expression, Expression)>>),
-    // GetDict(Box<Expression>, Box<Expression>),
-    // SetDict(Box<Expression>, Box<Expression>, Box<Expression>),
-    // RemoveDict(Box<Expression>, Box<Expression>),
-    
+
     Hash(Option<HashMap<Expression, Expression>>),
     GetHash(Box<Expression>, Box<Expression>),
     SetHash(Box<Expression>, Box<Expression>, Box<Expression>),
@@ -204,7 +110,6 @@ impl PartialEq for Expression {
             (Expression::Sub(a1, b1), Expression::Sub(a2, b2)) => a1 == a2 && b1 == b2,
             (Expression::Mul(a1, b1), Expression::Mul(a2, b2)) => a1 == a2 && b1 == b2,
             (Expression::Div(a1, b1), Expression::Div(a2, b2)) => a1 == a2 && b1 == b2,
-            (Expression::Rmd(a1, b1), Expression::Rmd(a2, b2)) => a1 == a2 && b1 == b2,
 
             // Comparison of boolean expressions
             (Expression::And(a1, b1), Expression::And(a2, b2)) => a1 == a2 && b1 == b2,
@@ -219,7 +124,7 @@ impl PartialEq for Expression {
             (Expression::LTE(a1, b1), Expression::LTE(a2, b2)) => a1 == a2 && b1 == b2,
 
             // Comparison of data structures (List, Tuple)
-            (Expression::List(a1, b1), Expression::List(a2, b2)) => a1 == a2 && b1 == b2,
+            (Expression::List(a1 ), Expression::List(a2)) => a1 == a2,
             (Expression::Tuple(a1), Expression::Tuple(a2)) => a1 == a2,
 
             // Comparison of data structures (Dict, Hash)
@@ -269,6 +174,7 @@ impl Hash for Expression {
     }
 }
 
+
 #[derive(Debug, PartialEq, Clone)]
 pub enum Statement {
     VarDeclaration(Name),
@@ -278,7 +184,7 @@ pub enum Statement {
     While(Box<Expression>, Box<Statement>),
     Block(Vec<Statement>),
     Sequence(Box<Statement>, Box<Statement>),
-    FuncDef(Function),
+    FuncDef(Name, Function),
     Return(Box<Expression>),
 }
 
